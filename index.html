@@ -2,100 +2,139 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>sosiologe</title>
+<title>Sosiologe</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
 <style>
-body{margin:0;font-family:Arial;background:#0b0f1a;color:white}
-.card{background:#11162a;padding:15px;border-radius:10px;margin:10px}
-input,button{width:100%;padding:10px;margin-top:6px;border-radius:6px;border:none}
-button{background:#22c55e;font-weight:bold}
-.post{background:#0f172a;padding:10px;border-radius:8px;margin-top:8px}
-.like{cursor:pointer;color:#22c55e}
-.hidden{display:none}
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #0b0f1a;
+  color: white;
+}
+input, button {
+  padding: 10px;
+  margin: 5px 0;
+  width: 100%;
+  border-radius: 6px;
+  border: none;
+}
+button {
+  background: #4a6cff;
+  color: white;
+}
+.card {
+  background: #121a2f;
+  padding: 15px;
+  border-radius: 10px;
+  margin: 10px 0;
+}
+.hidden { display: none; }
 </style>
 </head>
 
 <body>
 
-<div class="card" id="auth">
-  <h3>Вход</h3>
+<div id="auth" class="card">
+  <h2>Вход / Регистрация</h2>
   <input id="email" placeholder="Email">
   <input id="password" type="password" placeholder="Пароль">
   <button onclick="login()">Войти</button>
   <button onclick="register()">Регистрация</button>
 </div>
 
-<div class="card hidden" id="app">
-  <h3>Новый пост</h3>
-  <input id="postText" placeholder="Что нового?">
-  <button onclick="addPost()">Опубликовать</button>
+<div id="app" class="hidden">
+  <div class="card">
+    <h3>Новый пост</h3>
+    <input id="postText" placeholder="Что нового?">
+    <button onclick="addPost()">Опубликовать</button>
+    <button onclick="logout()">Выйти</button>
+  </div>
 
-  <h3>Лента</h3>
-  <div id="feed"></div>
-
-  <button onclick="logout()">Выйти</button>
+  <div id="posts"></div>
 </div>
 
-<script type="module">
-import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import {getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import {getDatabase,ref,push,onValue,set,update} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-const firebaseConfig={
-  apiKey:"AIzaSyBMhpCKnZnzWryB5q614gbRUt7qdWL-4wg",
-  authDomain:"sosiologe.firebaseapp.com",
-  databaseURL:"https://sosiologe-default-rtdb.firebaseio.com",
-  projectId:"sosiologe",
-  storageBucket:"sosiologe.firebasestorage.app",
-  messagingSenderId:"651066103994",
-  appId:"1:651066103994:web:13f35d4e31bba79c160a83"
+<script>
+const firebaseConfig = {
+  apiKey: "ТВОЙ_API_KEY",
+  authDomain: "ТВОЙ_PROJECT.firebaseapp.com",
+  databaseURL: "https://ТВОЙ_PROJECT-default-rtdb.firebaseio.com",
+  projectId: "ТВОЙ_PROJECT",
 };
 
-const app=initializeApp(firebaseConfig);
-const auth=getAuth(app);
-const db=getDatabase(app);
+firebase.initializeApp(firebaseConfig);
 
-window.register=()=>createUserWithEmailAndPassword(auth,email.value,password.value);
-window.login=()=>signInWithEmailAndPassword(auth,email.value,password.value);
-window.logout=()=>signOut(auth);
+const auth = firebase.auth();
+const db = firebase.database();
 
-onAuthStateChanged(auth,u=>{
-  authBox.classList.toggle("hidden",!!u);
-  app.classList.toggle("hidden",!u);
+auth.onAuthStateChanged(user => {
+  if (user) {
+    authDiv.style.display = "none";
+    app.classList.remove("hidden");
+    loadPosts();
+  } else {
+    authDiv.style.display = "block";
+    app.classList.add("hidden");
+  }
 });
 
-window.addPost=()=>{
-  const u=auth.currentUser;
-  push(ref(db,"posts"),{
-    text:postText.value,
-    author:u.email,
-    likes:{}
-  });
-  postText.value="";
-};
+function register() {
+  auth.createUserWithEmailAndPassword(email.value, password.value)
+    .catch(e => alert(e.message));
+}
 
-onValue(ref(db,"posts"),snap=>{
-  feed.innerHTML="";
-  snap.forEach(p=>{
-    const d=p.val();
-    const likesCount=d.likes?Object.keys(d.likes).length:0;
-    feed.innerHTML+=`
-      <div class="post">
-        <b>${d.author}</b><br>
-        ${d.text}<br>
-        <span class="like" onclick="like('${p.key}')">
-          ❤️ ${likesCount}
-        </span>
-      </div>`;
-  });
-});
+function login() {
+  auth.signInWithEmailAndPassword(email.value, password.value)
+    .catch(e => alert(e.message));
+}
 
-window.like=(id)=>{
-  const u=auth.currentUser;
-  update(ref(db,"posts/"+id+"/likes"),{
-    [u.uid]:true
+function logout() {
+  auth.signOut();
+}
+
+function addPost() {
+  if (!postText.value) return;
+  const postRef = db.ref("posts").push();
+  postRef.set({
+    text: postText.value,
+    uid: auth.currentUser.uid,
+    likes: {}
   });
-};
+  postText.value = "";
+}
+
+function loadPosts() {
+  db.ref("posts").on("value", snap => {
+    posts.innerHTML = "";
+    snap.forEach(post => {
+      const data = post.val();
+      const liked = data.likes && data.likes[auth.currentUser.uid];
+      const likeCount = data.likes ? Object.keys(data.likes).length : 0;
+
+      posts.innerHTML =
+        `<div class="card">
+          <p>${data.text}</p>
+          <button onclick="likePost('${post.key}')">
+            ❤️ ${likeCount}
+          </button>
+        </div>` + posts.innerHTML;
+    });
+  });
+}
+
+function likePost(id) {
+  const uid = auth.currentUser.uid;
+  const ref = db.ref("posts/" + id + "/likes/" + uid);
+  ref.once("value", snap => {
+    if (snap.exists()) ref.remove();
+    else ref.set(true);
+  });
+}
 </script>
 
 </body>
