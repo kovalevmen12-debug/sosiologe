@@ -2,165 +2,94 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>sosiologe</title>
+<title>sosiologe — конвертер</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body {
   margin: 0;
-  font-family: system-ui;
+  font-family: system-ui, Arial;
   background: #0b0f1a;
   color: white;
-}
-.container {
-  max-width: 420px;
-  margin: auto;
-  padding: 20px;
-}
-h1 {
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
 }
 .card {
   background: #11162a;
-  padding: 16px;
+  padding: 20px;
   border-radius: 14px;
-  margin-bottom: 16px;
-}
-input, select {
   width: 100%;
-  padding: 12px;
-  margin-top: 8px;
-  border-radius: 8px;
-  border: none;
+  max-width: 360px;
 }
-button {
+input, select, button {
   width: 100%;
   padding: 12px;
   margin-top: 10px;
   border-radius: 8px;
   border: none;
+  font-size: 16px;
+}
+button {
   background: #22c55e;
   font-weight: bold;
 }
-canvas {
-  margin-top: 20px;
-}
-small {
-  opacity: .6;
+.result {
+  margin-top: 15px;
+  font-size: 18px;
+  text-align: center;
 }
 </style>
 </head>
 
 <body>
 
-<div class="container">
-  <h1>sosiologe</h1>
+<div class="card">
+  <h2>sosiologe</h2>
 
-  <div class="card">
-    <input id="amount" type="number" placeholder="Сумма" value="1">
+  <input id="amount" type="number" placeholder="Сумма">
 
-    <select id="from">
-      <option value="USD">USD</option>
-      <option value="EUR">EUR</option>
-      <option value="RUB">RUB</option>
-      <option value="BTC">BTC</option>
-      <option value="ETH">ETH</option>
-    </select>
+  <select id="from">
+    <option value="USD">USD</option>
+    <option value="EUR">EUR</option>
+    <option value="RUB">RUB</option>
+  </select>
 
-    <select id="to">
-      <option value="EUR">EUR</option>
-      <option value="USD">USD</option>
-      <option value="RUB">RUB</option>
-      <option value="BTC">BTC</option>
-      <option value="ETH">ETH</option>
-    </select>
+  <select id="to">
+    <option value="EUR">EUR</option>
+    <option value="USD">USD</option>
+    <option value="RUB">RUB</option>
+  </select>
 
-    <button onclick="convert()">Конвертировать</button>
+  <button onclick="convert()">Конвертировать</button>
 
-    <h2 id="result"></h2>
-    <small id="rateInfo"></small>
-  </div>
-
-  <div class="card">
-    <h3>График курса</h3>
-    <canvas id="chart"></canvas>
-  </div>
+  <div class="result" id="result">—</div>
 </div>
 
 <script>
-let rates = {};
-let chart;
+async function convert() {
+  const amount = Number(document.getElementById("amount").value);
+  const from = document.getElementById("from").value;
+  const to = document.getElementById("to").value;
 
-async function loadRates() {
-  // обычные валюты
-  const fx = await fetch("https://api.exchangerate.host/latest?base=USD").then(r => r.json());
-  rates = fx.rates;
-  rates.USD = 1;
-
-  // крипта
-  const crypto = await fetch(
-    "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd"
-  ).then(r => r.json());
-
-  rates.BTC = crypto.bitcoin.usd;
-  rates.ETH = crypto.ethereum.usd;
-}
-
-function convert() {
-  const amount = +amountInput.value;
-  const from = fromSelect.value;
-  const to = toSelect.value;
-
-  const usdAmount = from === "BTC" || from === "ETH"
-    ? amount * rates[from]
-    : amount / rates[from];
-
-  const resultValue = to === "BTC" || to === "ETH"
-    ? usdAmount / rates[to]
-    : usdAmount * rates[to];
-
-  result.textContent = resultValue.toFixed(6);
-  rateInfo.textContent = `Курс: 1 ${from} = ${(resultValue/amount).toFixed(6)} ${to}`;
-
-  drawChart(from, to);
-}
-
-async function drawChart(from, to) {
-  const data = [];
-  const labels = [];
-
-  for (let i = 6; i >= 0; i--) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    labels.push(date.toLocaleDateString());
-    data.push(Math.random() * 10 + 50); // упрощённый график
+  if (!amount) {
+    result.textContent = "Введите сумму";
+    return;
   }
 
-  if (chart) chart.destroy();
+  try {
+    const res = await fetch("https://api.exchangerate.host/latest?base=" + from);
+    const data = await res.json();
 
-  chart = new Chart(document.getElementById("chart"), {
-    type: "line",
-    data: {
-      labels,
-      datasets: [{
-        label: `${from} → ${to}`,
-        data,
-        borderWidth: 2
-      }]
-    }
-  });
+    const rate = data.rates[to];
+    const converted = (amount * rate).toFixed(2);
+
+    result.textContent = `${amount} ${from} = ${converted} ${to}`;
+  } catch (e) {
+    result.textContent = "Ошибка загрузки курса";
+  }
 }
-
-const amountInput = document.getElementById("amount");
-const fromSelect = document.getElementById("from");
-const toSelect = document.getElementById("to");
-const result = document.getElementById("result");
-const rateInfo = document.getElementById("rateInfo");
-
-loadRates();
-setInterval(loadRates, 5 * 60 * 1000); // автообновление
 </script>
 
 </body>
