@@ -1,110 +1,132 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Вход</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    body {
-      background: #0b1020;
-      font-family: sans-serif;
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    .card {
-      background: #121a33;
-      padding: 20px;
-      border-radius: 12px;
-      width: 100%;
-      max-width: 350px;
-    }
-    input, button {
-      width: 100%;
-      margin-top: 10px;
-      padding: 12px;
-      border-radius: 8px;
-      border: none;
-      font-size: 16px;
-    }
-    button {
-      background: #22c55e;
-      color: black;
-      font-weight: bold;
-    }
-    .error {
-      color: #ff6b6b;
-      margin-top: 10px;
-      font-size: 14px;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Sosiologe Messenger</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{margin:0;font-family:sans-serif;background:#0f172a;color:#fff}
+#auth,#app{display:none}
+.center{display:flex;justify-content:center;align-items:center;height:100vh}
+.box{background:#020617;padding:20px;border-radius:10px;width:300px}
+input,button{width:100%;margin:5px 0;padding:10px;border:none;border-radius:5px}
+button{background:#2563eb;color:#fff}
+#app{display:flex;height:100vh}
+#users{width:30%;background:#020617;padding:10px;overflow:auto}
+#chat{flex:1;display:flex;flex-direction:column}
+#messages{flex:1;overflow:auto;padding:10px}
+.msg{margin:5px 0;padding:5px;background:#1e293b;border-radius:5px}
+.me{background:#2563eb}
+#send{display:flex}
+#send input{flex:1}
+.admin{color:#f87171;font-size:12px}
+</style>
 </head>
 <body>
 
-<div class="card">
-  <h2>Вход / Регистрация</h2>
+<div id="auth" class="center">
+  <div class="box">
+    <h3>Вход / Регистрация</h3>
+    <input id="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Пароль">
+    <input id="username" placeholder="Юзернейм (для регистрации)">
+    <button onclick="login()">Войти</button>
+    <button onclick="register()">Регистрация</button>
+  </div>
+</div>
 
-  <input id="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Пароль">
-  <input id="username" placeholder="@username (только при регистрации)">
+<div id="app">
+  <div id="users">
+    <b>Пользователи</b>
+    <input id="search" placeholder="Поиск..." oninput="loadUsers()">
+    <div id="userList"></div>
+    <button onclick="logout()">Выйти</button>
+    <div id="adminPanel" class="admin"></div>
+  </div>
 
-  <button onclick="register()">Регистрация</button>
-  <button onclick="login()">Войти</button>
-
-  <div class="error" id="error"></div>
+  <div id="chat">
+    <div id="messages"></div>
+    <div id="send">
+      <input id="text" placeholder="Сообщение">
+      <button onclick="send()">➤</button>
+    </div>
+  </div>
 </div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,doc,setDoc,getDocs,collection,addDoc,query,where,onSnapshot,orderBy} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyBMhpCKnZnzWryB5q614gbRUt7qdWL-4wg",
-    authDomain: "sosiologe.firebaseapp.com",
-    databaseURL: "https://sosiologe-default-rtdb.firebaseio.com",
-    projectId: "sosiologe",
-    storageBucket: "sosiologe.appspot.com",
-    messagingSenderId: "651066103994",
-    appId: "1:651066103994:web:13f35d4e31bba79c160a83"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyBMhpCKnZnzWryB5q614gbRUt7qdWL-4wg",
+  authDomain: "sosiologe.firebaseapp.com",
+  projectId: "sosiologe",
+};
+const ADMIN_UID="fJj3X9fkrISVtvbSK1Ezf9Njpzz1";
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getDatabase(app);
+const app=initializeApp(firebaseConfig);
+const auth=getAuth();
+const db=getFirestore();
 
-  window.register = async () => {
-    error.textContent = "";
-    try {
-      const email = email.value;
-      const password = password.value;
-      const username = username.value;
+let me=null,chatUser=null;
 
-      const res = await createUserWithEmailAndPassword(auth, email, password);
+window.register=async()=>{
+  const e=email.value,p=password.value,u=username.value;
+  const r=await createUserWithEmailAndPassword(auth,e,p);
+  await setDoc(doc(db,"users",r.user.uid),{username:u});
+};
 
-      await set(ref(db, "users/" + res.user.uid), {
-        username: username,
-        email: email
-      });
+window.login=()=>signInWithEmailAndPassword(auth,email.value,password.value);
+window.logout=()=>signOut(auth);
 
-      alert("Регистрация успешна");
-    } catch (e) {
-      error.textContent = e.message;
-    }
-  };
+onAuthStateChanged(auth,async u=>{
+  if(!u){authUI();return;}
+  me=u;
+  appUI();
+  loadUsers();
+  if(u.uid===ADMIN_UID) adminPanel.innerText="ADMIN MODE";
+});
 
-  window.login = async () => {
-    error.textContent = "";
-    try {
-      await signInWithEmailAndPassword(auth, email.value, password.value);
-      alert("Вход выполнен");
-    } catch (e) {
-      error.textContent = e.message;
-    }
-  };
+function authUI(){auth.style.display="flex";app.style.display="none"}
+function appUI(){auth.style.display="none";app.style.display="flex"}
+
+async function loadUsers(){
+  userList.innerHTML="";
+  const q=await getDocs(collection(db,"users"));
+  q.forEach(d=>{
+    if(d.id===me.uid) return;
+    if(search.value && !d.data().username.includes(search.value)) return;
+    const div=document.createElement("div");
+    div.textContent=d.data().username;
+    div.onclick=()=>openChat(d.id);
+    userList.appendChild(div);
+  });
+}
+
+function openChat(uid){
+  chatUser=uid;
+  messages.innerHTML="";
+  const q=query(collection(db,"chats",chatId(),"msg"),orderBy("t"));
+  onSnapshot(q,s=>s.forEach(d=>{
+    const m=document.createElement("div");
+    m.className="msg"+(d.data().u===me.uid?" me":"");
+    m.textContent=d.data().text;
+    messages.appendChild(m);
+  }));
+}
+
+function chatId(){
+  return [me.uid,chatUser].sort().join("_");
+}
+
+window.send=async()=>{
+  if(!text.value) return;
+  await addDoc(collection(db,"chats",chatId(),"msg"),{
+    u:me.uid,text:text.value,t:Date.now()
+  });
+  text.value="";
+};
 </script>
-
 </body>
 </html>
