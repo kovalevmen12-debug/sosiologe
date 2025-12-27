@@ -1,134 +1,111 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8" />
-<title>sosiologe</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>
-body{margin:0;font-family:system-ui;background:#0b0f1a;color:#fff}
-nav{display:flex;gap:8px;padding:10px;background:#0f172a;position:sticky;top:0}
-nav button{flex:1;padding:10px;border:0;border-radius:10px;background:#1f2937;color:#fff}
-nav button.active{background:#22c55e;color:#052e16}
-.card{background:#11162a;border-radius:14px;padding:14px;margin:10px}
-.hidden{display:none}
-input,select,textarea,button{width:100%;padding:10px;margin-top:8px;border-radius:8px;border:0}
-button.primary{background:#22c55e;color:#052e16;font-weight:600}
-button.ghost{background:#1f2937;color:#fff}
-.post{background:#0f172a;border-radius:10px;padding:10px;margin-top:8px}
-.row{display:flex;gap:8px}
-small{opacity:.7}
-</style>
+  <meta charset="UTF-8">
+  <title>sosiologe</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #fff;
+    }
+    header {
+      padding: 15px;
+      background: #020617;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #38bdf8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .container {
+      padding: 20px;
+      max-width: 500px;
+      margin: auto;
+    }
+    input, select, button {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
+    }
+    button {
+      background: #38bdf8;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .result {
+      margin-top: 15px;
+      font-size: 18px;
+    }
+  </style>
 </head>
 <body>
 
-<nav>
-  <button id="tabCalc" class="active" onclick="showTab('calc')">💱 Калькулятор</button>
-  <button id="tabFeed" onclick="showTab('feed')">📰 Посты</button>
-</nav>
+<header>
+  <h2>sosiologe</h2>
+  <div class="avatar">U</div>
+</header>
 
-<!-- КАЛЬКУЛЯТОР -->
-<div id="calc" class="card">
-  <h3>Конвертация валют</h3>
-  <input id="amount" type="number" value="1" />
-  <div class="row">
-    <select id="from">
-      <option>USD</option><option>EUR</option><option>RUB</option><option>UAH</option>
-    </select>
-    <select id="to">
-      <option>EUR</option><option>USD</option><option>RUB</option><option>UAH</option>
-    </select>
-  </div>
-  <button class="primary" onclick="convert()">Конвертировать</button>
-  <p id="result"></p>
+<div class="container">
+  <h3>Конвертер валют</h3>
+
+  <input id="amount" type="number" placeholder="Сумма" value="1">
+
+  <select id="from">
+    <option value="EUR">EUR</option>
+    <option value="USD">USD</option>
+    <option value="RUB">RUB</option>
+  </select>
+
+  <select id="to">
+    <option value="USD">USD</option>
+    <option value="EUR">EUR</option>
+    <option value="RUB">RUB</option>
+  </select>
+
+  <button onclick="convert()">Конвертировать</button>
+
+  <div class="result" id="result"></div>
 </div>
 
-<!-- ЛЕНТА -->
-<div id="feed" class="hidden">
-  <div class="card">
-    <h3>Новый пост</h3>
-    <textarea id="postText" placeholder="Что нового?" rows="3"></textarea>
-    <button class="primary" onclick="addPost()">Опубликовать</button>
-  </div>
-  <div id="posts"></div>
-</div>
+<script>
+async function convert() {
+  const amount = document.getElementById('amount').value;
+  const from = document.getElementById('from').value;
+  const to = document.getElementById('to').value;
+  const resultDiv = document.getElementById('result');
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  resultDiv.textContent = 'Загрузка...';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBMhpCKnZnzWryB5q614gbRUt7qdWL-4wg",
-  authDomain: "sosiologe.firebaseapp.com",
-  databaseURL: "https://sosiologe-default-rtdb.firebaseio.com",
-  projectId: "sosiologe",
-  storageBucket: "sosiologe.firebasestorage.app",
-  messagingSenderId: "651066103994",
-  appId: "1:651066103994:web:13f35d4e31bba79c160a83"
-};
+  try {
+    const res = await fetch(`https://api.exchangerate.host/convert?from=${from}&to=${to}&amount=${amount}`);
+    const data = await res.json();
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getDatabase(app);
+    if (!data.result) {
+      resultDiv.textContent = 'Ошибка курса';
+      return;
+    }
 
-// --- Tabs
-window.showTab = (t)=>{
-  calc.classList.toggle('hidden', t!=='calc');
-  feed.classList.toggle('hidden', t!=='feed');
-  tabCalc.classList.toggle('active', t==='calc');
-  tabFeed.classList.toggle('active', t==='feed');
-};
-
-// --- Auth (анонимно, чтобы работало сразу)
-signInAnonymously(auth);
-
-// --- Калькулятор (реальный API, без ключа)
-window.convert = async ()=>{
-  const a = Number(amount.value||1);
-  const f = from.value, t = to.value;
-  result.textContent = "Загрузка...";
-  const r = await fetch(`https://api.exchangerate.host/convert?from=${f}&to=${t}&amount=${a}`).then(r=>r.json());
-  result.textContent = `${a} ${f} = ${r.result.toFixed(4)} ${t}`;
-};
-
-// --- Посты + лайки + комментарии
-window.addPost = ()=>{
-  if(!postText.value) return;
-  push(ref(db,'posts'),{text:postText.value,likes:0,comments:{}});
-  postText.value='';
-};
-
-onValue(ref(db,'posts'), snap=>{
-  posts.innerHTML='';
-  snap.forEach(s=>{
-    const p=s.val(); const id=s.key;
-    const c=document.createElement('div');
-    c.className='card post';
-    c.innerHTML=`
-      <div>${p.text}</div>
-      <small>❤️ ${p.likes||0}</small>
-      <div class="row">
-        <button class="ghost" onclick="like('${id}', ${p.likes||0})">Лайк</button>
-      </div>
-      <input placeholder="Комментарий" id="c_${id}">
-      <button class="ghost" onclick="comment('${id}')">Отправить</button>
-      <div id="cm_${id}"></div>
-    `;
-    posts.prepend(c);
-    const cm=c.querySelector(`#cm_${id}`);
-    if(p.comments) Object.values(p.comments).forEach(x=>{
-      const d=document.createElement('div'); d.innerHTML=`<small>💬 ${x}</small>`; cm.appendChild(d);
-    });
-  });
-});
-
-window.like = (id, v)=> update(ref(db,'posts/'+id),{likes:v+1});
-window.comment = (id)=>{
-  const i=document.getElementById('c_'+id);
-  if(!i.value) return;
-  push(ref(db,'posts/'+id+'/comments'), i.value);
-  i.value='';
-};
+    resultDiv.textContent = `${amount} ${from} = ${data.result.toFixed(2)} ${to}`;
+  } catch (e) {
+    resultDiv.textContent = 'Ошибка подключения';
+  }
+}
 </script>
+
 </body>
 </html>
