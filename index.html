@@ -2,122 +2,154 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Sosiologe</title>
+<title>Sosiologe Messenger</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-body{margin:0;font-family:Arial;background:#f2f2f2}
-header{background:#111;color:#fff;padding:10px;display:flex;justify-content:space-between}
-button{padding:6px 10px;margin:5px}
-#auth,#app{max-width:600px;margin:auto;padding:10px}
-.post{background:#fff;margin:10px 0;padding:10px;border-radius:6px}
-.post img{max-width:100%;border-radius:6px}
-.comment{font-size:14px;margin-left:10px}
-.avatar{width:40px;height:40px;border-radius:50%;object-fit:cover}
+body{margin:0;font-family:system-ui;background:#0b0f1a;color:white}
+.hidden{display:none}
+.card{background:#11162a;padding:16px;border-radius:14px;margin:10px}
+input,button{width:100%;padding:12px;margin-top:8px;border-radius:8px;border:none}
+button{background:#22c55e;color:black;font-weight:600}
+.red{background:#ef4444;color:white}
+.user{padding:10px;border-bottom:1px solid #222;cursor:pointer}
+.msg{margin:6px 0;padding:8px;border-radius:8px;background:#1f2937}
+.me{background:#2563eb}
+header{display:flex;justify-content:space-between;align-items:center}
 </style>
 </head>
+
 <body>
 
-<header>
-  <div>Sosiologe</div>
-  <button onclick="logout()">Выйти</button>
-</header>
-
-<div id="auth">
-  <h3>Вход / Регистрация</h3>
-  <input id="email" placeholder="Email"><br>
-  <input id="password" type="password" placeholder="Пароль"><br>
-  <input id="name" placeholder="Имя"><br>
+<!-- AUTH -->
+<div id="auth" class="card">
+  <h2>Вход</h2>
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Пароль">
+  <input id="username" placeholder="Юзернейм (@name)">
   <button onclick="register()">Регистрация</button>
-  <button onclick="login()">Вход</button>
+  <button onclick="login()">Войти</button>
+  <small id="authStatus"></small>
 </div>
 
-<div id="app" style="display:none">
-  <h3>Создать пост</h3>
-  <input id="postText" placeholder="Текст"><br>
-  <input id="postImg" placeholder="Ссылка на картинку"><br>
-  <button onclick="addPost()">Опубликовать</button>
+<!-- APP -->
+<div id="app" class="hidden">
 
-  <div id="posts"></div>
+  <div class="card">
+    <header>
+      <b id="myName"></b>
+      <button class="red" onclick="logout()">Выйти</button>
+    </header>
+    <input id="search" placeholder="Поиск по юзернейму">
+    <div id="users"></div>
+  </div>
+
+  <div class="card hidden" id="chatBox">
+    <h3 id="chatWith"></h3>
+    <div id="messages"></div>
+    <input id="messageText" placeholder="Сообщение">
+    <button onclick="sendMessage()">Отправить</button>
+  </div>
+
 </div>
 
 <script type="module">
-import {initializeApp} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import {getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import {getDatabase,ref,set,push,onValue,update} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {getDatabase,ref,set,get,onValue,push} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBMhpCKnZnzWryB5q614gbRUt7qdWL-4wg",
-  authDomain: "sosiologe.firebaseapp.com",
-  databaseURL: "https://sosiologe-default-rtdb.firebaseio.com",
-  projectId: "sosiologe",
-  storageBucket: "sosiologe.appspot.com",
-  messagingSenderId: "651066103994",
-  appId: "1:651066103994:web:13f35d4e31bba79c160a83"
+const firebaseConfig={
+  apiKey:"AIzaSyBMhpCKnZnzWryB5q614gbRUt7qdWL-4wg",
+  authDomain:"sosiologe.firebaseapp.com",
+  databaseURL:"https://sosiologe-default-rtdb.firebaseio.com",
+  projectId:"sosiologe",
+  storageBucket:"sosiologe.firebasestorage.app",
+  messagingSenderId:"651066103994",
+  appId:"1:651066103994:web:13f35d4e31bba79c160a83"
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth();
-const db = getDatabase();
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getDatabase(app);
 
-window.register = ()=>{
+let currentChat=null;
+let myUser=null;
+
+window.register=()=>{
+  if(!username.value.startsWith("@")) return alert("Юзернейм должен начинаться с @");
   createUserWithEmailAndPassword(auth,email.value,password.value)
-  .then(r=>{
-    set(ref(db,"users/"+r.user.uid),{name:name.value});
-  });
-}
+    .then(r=>{
+      set(ref(db,"users/"+r.user.uid),{
+        username:username.value
+      });
+    })
+    .catch(e=>authStatus.textContent=e.message);
+};
 
-window.login = ()=>{
-  signInWithEmailAndPassword(auth,email.value,password.value);
-}
+window.login=()=>{
+  signInWithEmailAndPassword(auth,email.value,password.value)
+    .catch(e=>authStatus.textContent=e.message);
+};
 
-window.logout = ()=>signOut(auth);
+window.logout=()=>signOut(auth);
 
 onAuthStateChanged(auth,u=>{
-  if(u){
-    authDiv.style.display="none";
-    appDiv.style.display="block";
-    loadPosts();
-  }else{
-    authDiv.style.display="block";
-    appDiv.style.display="none";
-  }
+  if(!u){auth.classList.remove("hidden");app.classList.add("hidden");return;}
+  auth.classList.add("hidden");app.classList.remove("hidden");
+  myUser=u;
+  loadMe();
+  loadUsers();
 });
 
-const authDiv=document.getElementById("auth");
-const appDiv=document.getElementById("app");
-
-window.addPost=()=>{
-  const p=push(ref(db,"posts"));
-  set(p,{
-    text:postText.value,
-    img:postImg.value,
-    uid:auth.currentUser.uid,
-    likes:{}
+function loadMe(){
+  get(ref(db,"users/"+myUser.uid)).then(s=>{
+    myName.textContent=s.val().username;
   });
 }
 
-function loadPosts(){
-  onValue(ref(db,"posts"),s=>{
-    posts.innerHTML="";
-    s.forEach(p=>{
-      const d=p.val();
-      const liked=d.likes&&d.likes[auth.currentUser.uid];
-      posts.innerHTML+=`
-      <div class="post">
-        <p>${d.text}</p>
-        ${d.img?`<img src="${d.img}">`:""}
-        <button onclick="like('${p.key}')">
-          ❤️ ${d.likes?Object.keys(d.likes).length:0}
-        </button>
-      </div>`;
+function loadUsers(){
+  onValue(ref(db,"users"),snap=>{
+    users.innerHTML="";
+    snap.forEach(u=>{
+      if(u.key===myUser.uid) return;
+      if(!u.val().username.includes(search.value)) return;
+      const d=document.createElement("div");
+      d.className="user";
+      d.textContent=u.val().username;
+      d.onclick=()=>openChat(u.key,u.val().username);
+      users.appendChild(d);
     });
   });
 }
 
-window.like=id=>{
-  const r=ref(db,"posts/"+id+"/likes/"+auth.currentUser.uid);
-  set(r,true);
+search.oninput=loadUsers;
+
+function chatId(a,b){return a<b?a+"_"+b:b+"_"+a;}
+
+function openChat(uid,name){
+  currentChat=chatId(myUser.uid,uid);
+  chatBox.classList.remove("hidden");
+  chatWith.textContent=name;
+  onValue(ref(db,"chats/"+currentChat),s=>{
+    messages.innerHTML="";
+    s.forEach(m=>{
+      const d=document.createElement("div");
+      d.className="msg"+(m.val().from===myUser.uid?" me":"");
+      d.textContent=m.val().text;
+      messages.appendChild(d);
+    });
+  });
 }
+
+window.sendMessage=()=>{
+  if(!currentChat) return;
+  push(ref(db,"chats/"+currentChat),{
+    from:myUser.uid,
+    text:messageText.value,
+    time:Date.now()
+  });
+  messageText.value="";
+};
 </script>
+
 </body>
 </html>
