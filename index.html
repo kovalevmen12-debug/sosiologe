@@ -1,98 +1,104 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<title>sosiologe</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-body { font-family: Arial; background:#111; color:#fff; margin:20px }
-.card { background:#1e1e1e; padding:15px; border-radius:10px; margin-bottom:20px }
-button { padding:6px 10px; cursor:pointer }
-input, select { padding:6px }
-.like { color:red; cursor:pointer }
-</style>
+  <meta charset="UTF-8">
+  <title>sosiologe</title>
+  <style>
+    body { font-family: Arial; background:#f2f2f2; margin:0 }
+    header { background:#111; color:#fff; padding:10px; display:flex; justify-content:space-between }
+    .container { max-width:600px; margin:auto; padding:10px }
+    .card { background:#fff; padding:10px; margin-bottom:10px; border-radius:8px }
+    textarea, input { width:100%; padding:8px; margin:5px 0 }
+    button { padding:6px 10px; cursor:pointer }
+    .like { color:red; cursor:pointer }
+    .comment { font-size:14px; margin-left:10px }
+    img { max-width:40px; border-radius:50% }
+  </style>
 </head>
 <body>
 
-<h2>sosiologe</h2>
+<header>
+  <b>sosiologe</b>
+  <button onclick="editProfile()">Профиль</button>
+</header>
 
-<div class="card">
-<h3>💱 Конвертация валют</h3>
-<input id="amount" type="number" value="1">
-<select id="from">
-<option>USD</option><option>EUR</option><option>RUB</option>
-</select>
-<select id="to">
-<option>EUR</option><option>USD</option><option>RUB</option>
-</select>
-<button onclick="convert()">Конвертировать</button>
-<p id="result"></p>
-<canvas id="chart"></canvas>
-</div>
+<div class="container">
 
-<div class="card">
-<h3>📰 Посты</h3>
-<input id="postText" placeholder="Что нового?">
-<button onclick="addPost()">Опубликовать</button>
-<div id="posts"></div>
+  <div class="card">
+    <textarea id="postText" placeholder="Что нового?"></textarea>
+    <button onclick="addPost()">Опубликовать</button>
+  </div>
+
+  <div id="posts"></div>
+
 </div>
 
 <script>
-let userId = localStorage.getItem("uid") || Math.random().toString(36).slice(2);
-localStorage.setItem("uid", userId);
+let user = JSON.parse(localStorage.getItem("user")) || {
+  name: "Гость",
+  avatar: ""
+};
 
-async function convert() {
-  document.getElementById("result").innerText = "Загрузка...";
-  let a = amount.value;
-  let f = from.value;
-  let t = to.value;
-  let r = await fetch("https://api.exchangerate.host/latest?base="+f);
-  let d = await r.json();
-  let res = (a * d.rates[t]).toFixed(2);
-  result.innerText = `${a} ${f} = ${res} ${t}`;
-  drawChart(d.rates[t]);
+let posts = JSON.parse(localStorage.getItem("posts")) || [];
+
+function save() {
+  localStorage.setItem("posts", JSON.stringify(posts));
 }
 
-let chart;
-function drawChart(rate) {
-  if(chart) chart.destroy();
-  chart = new Chart(document.getElementById("chart"), {
-    type:"line",
-    data:{ labels:["Курс"], datasets:[{data:[rate]}] }
+function render() {
+  const div = document.getElementById("posts");
+  div.innerHTML = "";
+
+  posts.forEach((p, i) => {
+    div.innerHTML += `
+      <div class="card">
+        <b>${user.name}</b><br>
+        ${p.text}<br><br>
+        <span class="like" onclick="likePost(${i})">
+          ❤️ ${p.likes}
+        </span>
+        <div>
+          <input placeholder="Комментарий" onkeydown="comment(event, ${i})">
+        </div>
+        ${p.comments.map(c=>`<div class="comment">💬 ${c}</div>`).join("")}
+      </div>
+    `;
   });
 }
-
-let posts = JSON.parse(localStorage.getItem("posts")||"[]");
 
 function addPost() {
-  posts.unshift({ text:postText.value, likes:[], comments:[] });
-  localStorage.setItem("posts",JSON.stringify(posts));
-  postText.value="";
-  renderPosts();
+  const text = postText.value.trim();
+  if (!text) return;
+  posts.unshift({ text, likes:0, liked:false, comments:[] });
+  postText.value = "";
+  save(); render();
 }
 
-function renderPosts() {
-  postsDiv.innerHTML="";
-  posts.forEach((p,i)=>{
-    let liked = p.likes.includes(userId);
-    postsDiv.innerHTML += `
-    <div class="card">
-      <p>${p.text}</p>
-      <span class="like" onclick="like(${i})">
-      ❤️ ${p.likes.length} ${liked?"(ты лайкнул)":""}
-      </span>
-    </div>`;
-  });
+function likePost(i) {
+  if (posts[i].liked) return;
+  posts[i].likes++;
+  posts[i].liked = true;
+  save(); render();
 }
 
-function like(i){
-  let p = posts[i];
-  if(!p.likes.includes(userId)) p.likes.push(userId);
-  localStorage.setItem("posts",JSON.stringify(posts));
-  renderPosts();
+function comment(e, i) {
+  if (e.key === "Enter" && e.target.value.trim()) {
+    posts[i].comments.push(e.target.value);
+    e.target.value = "";
+    save(); render();
+  }
 }
 
-renderPosts();
+function editProfile() {
+  const name = prompt("Имя:", user.name);
+  if (name) {
+    user.name = name;
+    localStorage.setItem("user", JSON.stringify(user));
+    render();
+  }
+}
+
+render();
 </script>
 
 </body>
