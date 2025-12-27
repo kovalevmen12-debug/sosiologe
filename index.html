@@ -1,104 +1,101 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>sosiologe</title>
-  <style>
-    body { font-family: Arial; background:#f2f2f2; margin:0 }
-    header { background:#111; color:#fff; padding:10px; display:flex; justify-content:space-between }
-    .container { max-width:600px; margin:auto; padding:10px }
-    .card { background:#fff; padding:10px; margin-bottom:10px; border-radius:8px }
-    textarea, input { width:100%; padding:8px; margin:5px 0 }
-    button { padding:6px 10px; cursor:pointer }
-    .like { color:red; cursor:pointer }
-    .comment { font-size:14px; margin-left:10px }
-    img { max-width:40px; border-radius:50% }
-  </style>
+<meta charset="UTF-8">
+<title>sosiologe</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{margin:0;font-family:Arial;background:#0b0f1a;color:white}
+.card{background:#11162a;padding:15px;border-radius:10px;margin:10px}
+input,button{width:100%;padding:10px;margin-top:6px;border-radius:6px;border:none}
+button{background:#22c55e;font-weight:bold}
+.post{background:#0f172a;padding:10px;border-radius:8px;margin-top:8px}
+.like{cursor:pointer;color:#22c55e}
+.hidden{display:none}
+</style>
 </head>
+
 <body>
 
-<header>
-  <b>sosiologe</b>
-  <button onclick="editProfile()">Профиль</button>
-</header>
-
-<div class="container">
-
-  <div class="card">
-    <textarea id="postText" placeholder="Что нового?"></textarea>
-    <button onclick="addPost()">Опубликовать</button>
-  </div>
-
-  <div id="posts"></div>
-
+<div class="card" id="auth">
+  <h3>Вход</h3>
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Пароль">
+  <button onclick="login()">Войти</button>
+  <button onclick="register()">Регистрация</button>
 </div>
 
-<script>
-let user = JSON.parse(localStorage.getItem("user")) || {
-  name: "Гость",
-  avatar: ""
+<div class="card hidden" id="app">
+  <h3>Новый пост</h3>
+  <input id="postText" placeholder="Что нового?">
+  <button onclick="addPost()">Опубликовать</button>
+
+  <h3>Лента</h3>
+  <div id="feed"></div>
+
+  <button onclick="logout()">Выйти</button>
+</div>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {getDatabase,ref,push,onValue,set,update} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyBMhpCKnZnzWryB5q614gbRUt7qdWL-4wg",
+  authDomain:"sosiologe.firebaseapp.com",
+  databaseURL:"https://sosiologe-default-rtdb.firebaseio.com",
+  projectId:"sosiologe",
+  storageBucket:"sosiologe.firebasestorage.app",
+  messagingSenderId:"651066103994",
+  appId:"1:651066103994:web:13f35d4e31bba79c160a83"
 };
 
-let posts = JSON.parse(localStorage.getItem("posts")) || [];
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getDatabase(app);
 
-function save() {
-  localStorage.setItem("posts", JSON.stringify(posts));
-}
+window.register=()=>createUserWithEmailAndPassword(auth,email.value,password.value);
+window.login=()=>signInWithEmailAndPassword(auth,email.value,password.value);
+window.logout=()=>signOut(auth);
 
-function render() {
-  const div = document.getElementById("posts");
-  div.innerHTML = "";
+onAuthStateChanged(auth,u=>{
+  authBox.classList.toggle("hidden",!!u);
+  app.classList.toggle("hidden",!u);
+});
 
-  posts.forEach((p, i) => {
-    div.innerHTML += `
-      <div class="card">
-        <b>${user.name}</b><br>
-        ${p.text}<br><br>
-        <span class="like" onclick="likePost(${i})">
-          ❤️ ${p.likes}
-        </span>
-        <div>
-          <input placeholder="Комментарий" onkeydown="comment(event, ${i})">
-        </div>
-        ${p.comments.map(c=>`<div class="comment">💬 ${c}</div>`).join("")}
-      </div>
-    `;
+window.addPost=()=>{
+  const u=auth.currentUser;
+  push(ref(db,"posts"),{
+    text:postText.value,
+    author:u.email,
+    likes:{}
   });
-}
+  postText.value="";
+};
 
-function addPost() {
-  const text = postText.value.trim();
-  if (!text) return;
-  posts.unshift({ text, likes:0, liked:false, comments:[] });
-  postText.value = "";
-  save(); render();
-}
+onValue(ref(db,"posts"),snap=>{
+  feed.innerHTML="";
+  snap.forEach(p=>{
+    const d=p.val();
+    const likesCount=d.likes?Object.keys(d.likes).length:0;
+    feed.innerHTML+=`
+      <div class="post">
+        <b>${d.author}</b><br>
+        ${d.text}<br>
+        <span class="like" onclick="like('${p.key}')">
+          ❤️ ${likesCount}
+        </span>
+      </div>`;
+  });
+});
 
-function likePost(i) {
-  if (posts[i].liked) return;
-  posts[i].likes++;
-  posts[i].liked = true;
-  save(); render();
-}
-
-function comment(e, i) {
-  if (e.key === "Enter" && e.target.value.trim()) {
-    posts[i].comments.push(e.target.value);
-    e.target.value = "";
-    save(); render();
-  }
-}
-
-function editProfile() {
-  const name = prompt("Имя:", user.name);
-  if (name) {
-    user.name = name;
-    localStorage.setItem("user", JSON.stringify(user));
-    render();
-  }
-}
-
-render();
+window.like=(id)=>{
+  const u=auth.currentUser;
+  update(ref(db,"posts/"+id+"/likes"),{
+    [u.uid]:true
+  });
+};
 </script>
 
 </body>
