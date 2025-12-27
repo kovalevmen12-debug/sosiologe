@@ -1,176 +1,140 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8" />
-<title>sosiologe messenger</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
+<meta charset="UTF-8">
+<title>sosiologe</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background:#0f172a;
-  color:white;
-}
-#auth, #app { display:none; height:100vh; }
-#auth {
-  display:flex;
-  justify-content:center;
-  align-items:center;
-}
-.auth-box {
-  background:#020617;
-  padding:20px;
-  width:300px;
-  border-radius:10px;
-}
-input, button {
-  width:100%;
-  margin:6px 0;
-  padding:10px;
-  border-radius:6px;
-  border:none;
-}
-button {
-  background:#2563eb;
-  color:white;
-  cursor:pointer;
-}
-#app {
-  display:flex;
-}
-#users {
-  width:30%;
-  background:#020617;
-  padding:10px;
-}
-#chat {
-  flex:1;
-  display:flex;
-  flex-direction:column;
-}
-#messages {
-  flex:1;
-  padding:10px;
-  overflow:auto;
-}
-.msg {
-  margin:5px 0;
-}
-.me { text-align:right; color:#60a5fa; }
-#send {
-  display:flex;
-}
-#send input { flex:1; }
+body { margin:0;font-family:sans-serif;background:#0f172a;color:white }
+header { display:flex;justify-content:space-between;align-items:center;padding:10px;background:#020617 }
+button,input,textarea { border-radius:8px;border:none;padding:8px }
+button { background:#2563eb;color:white }
+#auth,#app { max-width:500px;margin:auto;padding:15px }
+.post { background:#020617;margin:10px 0;padding:10px;border-radius:10px }
+.comment { font-size:14px;margin-left:10px;color:#cbd5f5 }
+.admin { color:#f87171;font-size:12px }
 </style>
 </head>
 <body>
 
+<header>
+<b>sosiologe</b>
+<span id="userInfo"></span>
+</header>
+
 <div id="auth">
-  <div class="auth-box">
-    <h3>Вход / Регистрация</h3>
-    <input id="email" placeholder="Email">
-    <input id="username" placeholder="Username">
-    <input id="password" type="password" placeholder="Пароль">
-    <button onclick="register()">Регистрация</button>
-    <button onclick="login()">Вход</button>
-  </div>
+<h3>Вход / Регистрация</h3>
+<input id="name" placeholder="Имя"><br><br>
+<input id="email" placeholder="Email"><br><br>
+<input id="password" type="password" placeholder="Пароль"><br><br>
+<button onclick="register()">Регистрация</button>
+<button onclick="login()">Вход</button>
 </div>
 
-<div id="app">
-  <div id="users">
-    <input id="search" placeholder="Поиск username" oninput="searchUser()">
-    <div id="userList"></div>
-  </div>
-  <div id="chat">
-    <div id="messages"></div>
-    <div id="send">
-      <input id="text">
-      <button onclick="send()">➤</button>
-    </div>
-  </div>
+<div id="app" style="display:none">
+<textarea id="postText" placeholder="Что нового?"></textarea><br><br>
+<button onclick="addPost()">Опубликовать</button>
+<div id="posts"></div>
 </div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyBMhpCKnZnzWryB5q614gbRUt7qdWL-4wg",
   authDomain: "sosiologe.firebaseapp.com",
+  databaseURL: "https://sosiologe-default-rtdb.firebaseio.com",
   projectId: "sosiologe"
 };
+
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
-const db = firebase.firestore();
+const db = firebase.database();
 
-let me = null;
-let chatWith = null;
+const ADMIN_UID = "fJj3X9fkrISVtvbSK1Ezf9Njpzz1";
 
-auth.onAuthStateChanged(u=>{
-  if(u){
-    me=u;
-    document.getElementById('auth').style.display='none';
-    document.getElementById('app').style.display='flex';
-  }else{
-    document.getElementById('auth').style.display='flex';
-    document.getElementById('app').style.display='none';
+auth.onAuthStateChanged(user=>{
+  if(user){
+    document.getElementById("auth").style.display="none";
+    document.getElementById("app").style.display="block";
+    document.getElementById("userInfo").innerText=user.email;
+    loadPosts();
   }
 });
 
 function register(){
-  const e=email.value,p=password.value,u=username.value;
-  auth.createUserWithEmailAndPassword(e,p).then(r=>{
-    db.collection('users').doc(r.user.uid).set({username:u});
-  });
+  auth.createUserWithEmailAndPassword(
+    email.value,password.value
+  ).then(u=>{
+    db.ref("users/"+u.user.uid).set({
+      name:name.value || "Без имени",
+      banned:false
+    });
+  }).catch(e=>alert(e.message));
 }
 
 function login(){
-  auth.signInWithEmailAndPassword(email.value,password.value);
+  auth.signInWithEmailAndPassword(
+    email.value,password.value
+  ).catch(e=>alert(e.message));
 }
 
-function searchUser(){
-  const q=search.value;
-  db.collection('users').where('username','>=',q).limit(10).get().then(s=>{
-    userList.innerHTML='';
-    s.forEach(d=>{
-      if(d.id!==me.uid){
-        const div=document.createElement('div');
-        div.textContent=d.data().username;
-        div.onclick=()=>openChat(d.id);
-        userList.appendChild(div);
-      }
+function addPost(){
+  const user = auth.currentUser;
+  if(!user) return;
+  db.ref("posts").push({
+    uid:user.uid,
+    text:postText.value,
+    likes:{},
+    time:Date.now()
+  });
+  postText.value="";
+}
+
+function loadPosts(){
+  db.ref("posts").on("value",snap=>{
+    posts.innerHTML="";
+    snap.forEach(p=>{
+      const d=p.val();
+      const div=document.createElement("div");
+      div.className="post";
+      const liked=d.likes && d.likes[auth.currentUser.uid];
+      div.innerHTML=`
+        <b>${d.uid}</b>
+        <p>${d.text}</p>
+        <button onclick="like('${p.key}')">
+          ❤️ ${d.likes?Object.keys(d.likes).length:0}
+        </button>
+        <button onclick="comment('${p.key}')">💬</button>
+        ${auth.currentUser.uid===ADMIN_UID?
+          `<button class="admin" onclick="ban('${d.uid}')">BAN</button>`:""}
+      `;
+      posts.appendChild(div);
     });
   });
 }
 
-function openChat(uid){
-  chatWith=uid;
-  messages.innerHTML='';
-  db.collection('messages')
-    .where('users','in',[[me.uid,uid],[uid,me.uid]])
-    .orderBy('time')
-    .onSnapshot(s=>{
-      messages.innerHTML='';
-      s.forEach(d=>{
-        const m=document.createElement('div');
-        m.className='msg'+(d.data().from===me.uid?' me':'');
-        m.textContent=d.data().text;
-        messages.appendChild(m);
-      });
+function like(id){
+  const uid=auth.currentUser.uid;
+  db.ref("posts/"+id+"/likes/"+uid).set(true);
+}
+
+function comment(id){
+  const text=prompt("Комментарий");
+  if(text)
+    db.ref("posts/"+id+"/comments").push({
+      uid:auth.currentUser.uid,text
     });
 }
 
-function send(){
-  if(!chatWith)return;
-  db.collection('messages').add({
-    from:me.uid,
-    to:chatWith,
-    users:[me.uid,chatWith],
-    text:text.value,
-    time:firebase.firestore.FieldValue.serverTimestamp()
-  });
-  text.value='';
+function ban(uid){
+  if(confirm("Забанить пользователя?")){
+    db.ref("users/"+uid+"/banned").set(true);
+    alert("Забанен");
+  }
 }
 </script>
 </body>
