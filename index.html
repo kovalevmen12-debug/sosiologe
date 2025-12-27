@@ -1,142 +1,152 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<title>sosiologe</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-body{margin:0;font-family:sans-serif;background:#f2f2f2}
-header{background:#111;color:#fff;padding:10px;display:flex;justify-content:space-between;align-items:center}
-button{padding:8px 12px;border:none;border-radius:6px;cursor:pointer}
-#auth,#profile{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center}
-.modal{background:#fff;padding:20px;border-radius:12px;width:90%;max-width:400px}
-.post{background:#fff;margin:10px;padding:10px;border-radius:10px}
-.post img{max-width:100%;border-radius:8px}
-.comment{font-size:14px;margin-left:10px}
-.hidden{display:none}
-</style>
+  <meta charset="UTF-8" />
+  <title>sosiologe</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    body { margin:0; font-family: Arial; background:#f2f2f2; }
+    header { background:#111; color:#fff; padding:10px; display:flex; justify-content:space-between; }
+    .btn { padding:8px 12px; background:#007bff; color:#fff; border:none; border-radius:5px; }
+    .container { max-width:600px; margin:auto; padding:10px; }
+    .post { background:#fff; margin-top:10px; padding:10px; border-radius:8px; }
+    .hidden { display:none; }
+    img { max-width:100%; border-radius:8px; }
+    input, textarea { width:100%; margin-top:5px; padding:8px; }
+    .like { cursor:pointer; color:#007bff; }
+  </style>
 </head>
 <body>
 
 <header>
-  <b>sosiologe</b>
-  <img id="avatarBtn" src="https://i.imgur.com/6VBx3io.png" width="40" style="border-radius:50%;cursor:pointer">
+  <div><b>sosiologe</b></div>
+  <div id="userName"></div>
 </header>
 
-<div id="feed"></div>
-
-<button onclick="newPost()" style="position:fixed;bottom:20px;right:20px">＋</button>
-
 <!-- AUTH -->
-<div id="auth">
-  <div class="modal">
-    <h3>Вход / Регистрация</h3>
-    <input id="email" placeholder="Email"><br><br>
-    <input id="password" type="password" placeholder="Пароль"><br><br>
-    <input id="name" placeholder="Имя (для регистрации)"><br><br>
-    <button onclick="login()">Войти</button>
-    <button onclick="register()">Регистрация</button>
-  </div>
+<div class="container" id="auth">
+  <h3>Вход</h3>
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Пароль">
+  <button class="btn" onclick="login()">Войти</button>
+
+  <h3>Регистрация</h3>
+  <input id="regName" placeholder="Имя">
+  <input id="regEmail" placeholder="Email">
+  <input id="regPassword" type="password" placeholder="Пароль">
+  <button class="btn" onclick="register()">Зарегистрироваться</button>
 </div>
 
-<!-- PROFILE -->
-<div id="profile">
-  <div class="modal">
-    <h3>Профиль</h3>
-    <input id="pname"><br><br>
-    <input id="pavatar" placeholder="URL аватарки"><br><br>
-    <button onclick="saveProfile()">Сохранить</button>
-    <button onclick="logout()">Выйти</button>
-    <button onclick="closeProfile()">Закрыть</button>
-  </div>
-</div>
+<!-- APP -->
+<div class="container hidden" id="app">
+  <h3>Новый пост</h3>
+  <textarea id="postText" placeholder="Что нового?"></textarea>
+  <input id="postImage" placeholder="Ссылка на картинку (необязательно)">
+  <button class="btn" onclick="addPost()">Опубликовать</button>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <div id="posts"></div>
+</div>
 
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyBMhpCKnZnzWryB5q614gbRUt7qdWL-4wg",
-  authDomain: "sosiologe.firebaseapp.com",
-  databaseURL: "https://sosiologe-default-rtdb.firebaseio.com",
-  projectId: "sosiologe",
-};
-firebase.initializeApp(firebaseConfig);
+  // 🔥 ТВОЙ CONFIG (УЖЕ ПОДСТАВЛЕН)
+  const firebaseConfig = {
+    apiKey: "AIzaSyBMhpCKnZnzWryB5q614gbRUt7qdWL-4wg",
+    authDomain: "sosiologe.firebaseapp.com",
+    projectId: "sosiologe",
+  };
 
-const auth=firebase.auth();
-const db=firebase.database();
-const ADMIN_UID="fJj3X9fkrISVtvbSK1Ezf9Njpzz1";
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
 
-auth.onAuthStateChanged(u=>{
-  if(!u){authBox(true);return}
-  authBox(false);
-  loadFeed();
-});
+  let currentUser = null;
 
-function authBox(s){document.getElementById('auth').style.display=s?'flex':'none'}
-
-function login(){auth.signInWithEmailAndPassword(email.value,password.value)}
-function register(){
-  auth.createUserWithEmailAndPassword(email.value,password.value)
-  .then(r=>db.ref("users/"+r.user.uid).set({name:name.value,avatar:""}))
-}
-
-function logout(){auth.signOut()}
-avatarBtn.onclick=()=>profile.style.display='flex';
-function closeProfile(){profile.style.display='none'}
-
-function saveProfile(){
-  const u=auth.currentUser;
-  db.ref("users/"+u.uid).update({name:pname.value,avatar:pavatar.value});
-  closeProfile();
-}
-
-function newPost(){
-  const text=prompt("Текст поста");
-  const img=prompt("URL картинки (необязательно)");
-  if(!text)return;
-  db.ref("posts").push({
-    uid:auth.currentUser.uid,
-    text, img, time:Date.now()
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      currentUser = user;
+      document.getElementById("auth").classList.add("hidden");
+      document.getElementById("app").classList.remove("hidden");
+      loadUser();
+      loadPosts();
+    } else {
+      document.getElementById("auth").classList.remove("hidden");
+      document.getElementById("app").classList.add("hidden");
+    }
   });
-}
 
-function loadFeed(){
-  feed.innerHTML="";
-  db.ref("posts").on("value",s=>{
-    feed.innerHTML="";
-    s.forEach(p=>{
-      const d=p.val();
-      const div=document.createElement("div");
-      div.className="post";
-      div.innerHTML=`
-        <b>${d.text}</b><br>
-        ${d.img?`<img src="${d.img}">`:""}
-        <br>
-        <button onclick="like('${p.key}')">❤️</button>
-        <button onclick="comment('${p.key}')">💬</button>
-        ${auth.currentUser.uid===ADMIN_UID?`<button onclick="ban('${d.uid}')">🚫</button>`:""}
-      `;
-      feed.prepend(div);
+  function register() {
+    const email = regEmail.value;
+    const pass = regPassword.value;
+    const name = regName.value;
+
+    auth.createUserWithEmailAndPassword(email, pass).then(res => {
+      db.collection("users").doc(res.user.uid).set({
+        name: name,
+        avatar: ""
+      });
+    }).catch(alert);
+  }
+
+  function login() {
+    auth.signInWithEmailAndPassword(email.value, password.value).catch(alert);
+  }
+
+  function loadUser() {
+    db.collection("users").doc(currentUser.uid).get().then(doc => {
+      userName.innerText = doc.data().name;
     });
-  });
-}
+  }
 
-function like(id){
-  const uid=auth.currentUser.uid;
-  db.ref(`likes/${id}/${uid}`).set(true);
-}
+  function addPost() {
+    db.collection("posts").add({
+      uid: currentUser.uid,
+      text: postText.value,
+      image: postImage.value,
+      likes: [],
+      created: Date.now()
+    });
+    postText.value = "";
+    postImage.value = "";
+  }
 
-function comment(id){
-  const c=prompt("Комментарий");
-  if(c)db.ref(`comments/${id}`).push({uid:auth.currentUser.uid,text:c});
-}
+  function loadPosts() {
+    db.collection("posts").orderBy("created","desc")
+      .onSnapshot(snap => {
+        posts.innerHTML = "";
+        snap.forEach(doc => {
+          const p = doc.data();
+          const liked = p.likes.includes(currentUser.uid);
 
-function ban(uid){
-  db.ref("banned/"+uid).set(true);
-  alert("Пользователь забанен");
-}
+          posts.innerHTML += `
+            <div class="post">
+              <p>${p.text}</p>
+              ${p.image ? `<img src="${p.image}">` : ""}
+              <div class="like" onclick="likePost('${doc.id}')">
+                ❤️ ${p.likes.length} ${liked ? "(ты лайкнул)" : ""}
+              </div>
+            </div>`;
+        });
+      });
+  }
+
+  function likePost(id) {
+    const ref = db.collection("posts").doc(id);
+    ref.get().then(doc => {
+      let likes = doc.data().likes;
+      if (likes.includes(currentUser.uid)) {
+        likes = likes.filter(l => l !== currentUser.uid);
+      } else {
+        likes.push(currentUser.uid);
+      }
+      ref.update({ likes });
+    });
+  }
 </script>
 </body>
 </html>
