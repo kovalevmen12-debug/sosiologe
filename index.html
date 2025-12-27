@@ -3,133 +3,130 @@
 <head>
 <meta charset="UTF-8">
 <title>Sosiologe</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-body{margin:0;font-family:Arial;background:#111;color:#fff}
-header{background:#1e1e1e;padding:10px;display:flex;justify-content:space-between}
-button,input,textarea{background:#222;color:#fff;border:1px solid #333;padding:8px;border-radius:6px}
-.post{background:#1c1c1c;margin:10px;padding:10px;border-radius:8px}
-.comment{font-size:14px;color:#ccc;margin-left:10px}
+body{margin:0;font-family:Arial;background:#0f172a;color:#fff}
+header{display:flex;justify-content:space-between;align-items:center;padding:10px;background:#020617}
+button,input,textarea{background:#020617;color:#fff;border:1px solid #334155;padding:8px;border-radius:6px}
 .hidden{display:none}
+.post{background:#020617;margin:10px;padding:10px;border-radius:10px}
+.comment{margin-left:10px;font-size:14px;color:#cbd5f5}
+.admin{border:2px solid red}
 </style>
 </head>
 <body>
 
 <header>
-<b>Sosiologe</b>
-<div id="userBar"></div>
+  <b>Sosiologe</b>
+  <button id="logoutBtn" class="hidden">Выйти</button>
 </header>
 
 <div id="auth">
-<h3>Вход / Регистрация</h3>
-<input id="email" placeholder="email"><br><br>
-<input id="password" type="password" placeholder="пароль"><br><br>
-<input id="username" placeholder="имя профиля"><br><br>
-<button onclick="login()">Войти</button>
-<button onclick="register()">Регистрация</button>
+  <h3>Вход / Регистрация</h3>
+  <input id="email" placeholder="email"><br><br>
+  <input id="password" placeholder="пароль" type="password"><br><br>
+  <input id="name" placeholder="имя (для регистрации)"><br><br>
+  <button onclick="login()">Войти</button>
+  <button onclick="register()">Регистрация</button>
 </div>
 
 <div id="app" class="hidden">
-<h3>Создать пост</h3>
-<textarea id="postText"></textarea><br>
-<button onclick="addPost()">Опубликовать</button>
-<div id="posts"></div>
+  <h3>Создать пост</h3>
+  <textarea id="postText" placeholder="что нового?"></textarea><br>
+  <button onclick="addPost()">Опубликовать</button>
+
+  <h3>Лента</h3>
+  <div id="posts"></div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<div id="adminPanel" class="hidden">
+  <h2>Админ панель</h2>
+  <div id="users"></div>
+</div>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyBMhpCKnZnzWryB5q614gbRUt7qdWL-4wg",
   authDomain: "sosiologe.firebaseapp.com",
-  databaseURL: "https://sosiologe-default-rtdb.firebaseio.com",
-  projectId: "sosiologe"
+  projectId: "sosiologe",
 };
-
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.database();
 const ADMIN_UID = "fJj3X9fkrISVtvbSK1Ezf9Njpzz1";
 
-auth.onAuthStateChanged(user=>{
-  if(user){
-    document.getElementById("auth").classList.add("hidden");
-    document.getElementById("app").classList.remove("hidden");
-    document.getElementById("userBar").innerHTML =
-      user.email + ' <button onclick="logout()">Выйти</button>';
-    loadPosts();
-  }
+const app = initializeApp(firebaseConfig);
+const auth = getAuth();
+const db = getFirestore();
+
+window.login = async () => {
+  await signInWithEmailAndPassword(auth,email.value,password.value);
+}
+window.register = async () => {
+  const cred = await createUserWithEmailAndPassword(auth,email.value,password.value);
+  await setDoc(doc(db,"users",cred.user.uid),{name:name.value,ban:false});
+}
+
+logoutBtn.onclick=()=>signOut(auth);
+
+onAuthStateChanged(auth, async user=>{
+  if(!user){authDiv(true);return;}
+  authDiv(false);
+  loadPosts();
+  if(user.uid===ADMIN_UID)adminPanel.classList.remove("hidden");
 });
 
-function register(){
-  auth.createUserWithEmailAndPassword(email.value,password.value)
-  .then(u=>{
-    db.ref("users/"+u.user.uid).set({name:username.value});
-  });
+function authDiv(show){
+  auth.classList.toggle("hidden",!show);
+  app.classList.toggle("hidden",show);
+  logoutBtn.classList.toggle("hidden",show);
 }
 
-function login(){
-  auth.signInWithEmailAndPassword(email.value,password.value);
-}
-
-function logout(){
-  auth.signOut();
-}
-
-function addPost(){
-  const user = auth.currentUser;
-  const id = db.ref().child("posts").push().key;
-  db.ref("posts/"+id).set({
+window.addPost = async ()=>{
+  const u=auth.currentUser;
+  const ud=await getDoc(doc(db,"users",u.uid));
+  if(ud.data().ban)return alert("Ты забанен");
+  await addDoc(collection(db,"posts"),{
     text:postText.value,
-    uid:user.uid,
-    likes:{},
-    comments:{}
+    uid:u.uid,
+    likes:[]
   });
   postText.value="";
 }
 
 function loadPosts(){
-  db.ref("posts").on("value",snap=>{
+  onSnapshot(collection(db,"posts"),snap=>{
     posts.innerHTML="";
-    snap.forEach(p=>{
-      const d=p.val();
+    snap.forEach(d=>{
+      const p=d.data();
       const div=document.createElement("div");
       div.className="post";
       div.innerHTML=`
-        <b>${d.text}</b><br>
-        ❤️ ${d.likes?Object.keys(d.likes).length:0}
-        <button onclick="like('${p.key}')">Лайк</button>
-        ${auth.currentUser.uid===ADMIN_UID?`<button onclick="del('${p.key}')">❌</button>`:""}
-        <br>
-        <input placeholder="комментарий" id="c${p.key}">
-        <button onclick="comment('${p.key}')">➕</button>
+        <div>${p.text}</div>
+        <button onclick="like('${d.id}')">❤️ ${p.likes.length}</button>
+        <input placeholder="комментарий" onkeydown="if(event.key==='Enter')comment('${d.id}',this.value)">
       `;
-      if(d.comments){
-        Object.values(d.comments).forEach(c=>{
-          const cc=document.createElement("div");
-          cc.className="comment";
-          cc.textContent=c;
-          div.appendChild(cc);
-        });
-      }
       posts.appendChild(div);
     });
   });
 }
 
-function like(id){
+window.like=async(id)=>{
+  const ref=doc(db,"posts",id);
   const uid=auth.currentUser.uid;
-  db.ref(`posts/${id}/likes/${uid}`).set(true);
+  const snap=await getDoc(ref);
+  if(snap.data().likes.includes(uid))
+    await updateDoc(ref,{likes:arrayRemove(uid)});
+  else
+    await updateDoc(ref,{likes:arrayUnion(uid)});
 }
 
-function comment(id){
-  const t=document.getElementById("c"+id).value;
-  db.ref(`posts/${id}/comments`).push(t);
-}
-
-function del(id){
-  db.ref("posts/"+id).remove();
+window.comment=async(id,text)=>{
+  if(!text)return;
+  await addDoc(collection(db,"posts",id,"comments"),{
+    text,uid:auth.currentUser.uid
+  });
 }
 </script>
 </body>
