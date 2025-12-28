@@ -78,7 +78,7 @@
                     <img id="img-c1" class="coin-icon" src="" alt="">
                     <select id="c1">
                         <optgroup label="Fiat">
-                            <option value="RUB">RUB</option><option value="USD" selected>USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="CNY">CNY</option><option value="KZT">KZT</option><option value="UAH">UAH</option>
+                            <option value="RUB">RUB</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="CNY">CNY</option><option value="KZT">KZT</option><option value="UAH">UAH</option>
                         </optgroup>
                         <optgroup label="Crypto">
                             <option value="BTC">BTC</option><option value="ETH">ETH</option><option value="USDT">USDT</option><option value="TON">TON</option><option value="SOL">SOL</option><option value="BNB">BNB</option><option value="XRP">XRP</option><option value="DOGE">DOGE</option>
@@ -95,7 +95,7 @@
                 <div class="currency-select-container">
                     <img id="img-c2" class="coin-icon" src="" alt="">
                     <select id="c2">
-                        <option value="USDT">USDT</option><option value="RUB" selected>RUB</option><option value="BTC">BTC</option><option value="TON">TON</option><option value="SOL">SOL</option><option value="USD">USD</option>
+                        <option value="USDT">USDT</option><option value="RUB">RUB</option><option value="BTC">BTC</option><option value="TON">TON</option><option value="SOL">SOL</option><option value="USD">USD</option>
                     </select>
                 </div>
                 <input type="text" id="a2" readonly placeholder="0.00">
@@ -114,7 +114,11 @@
         let apiEnabled = true, history = JSON.parse(localStorage.getItem('trade_history')) || [], refreshTimer = 60, saveTimeout;
         let isFirstLoad = true;
 
+        // Восстановление сохраненных валют и темы [cite: 2025-12-27]
+        if (localStorage.getItem('currency1')) document.getElementById('c1').value = localStorage.getItem('currency1');
+        if (localStorage.getItem('currency2')) document.getElementById('c2').value = localStorage.getItem('currency2');
         if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
+        
         document.getElementById('theme-toggle').onclick = () => { document.body.classList.toggle('light-mode'); localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark'); };
 
         const canvas = document.getElementById('snow-canvas'), ctx = canvas.getContext('2d');
@@ -133,20 +137,13 @@
 
         function updateIcons() {
             const icons = {
-                'RUB': 'https://img.icons8.com/color/96/russian-ruble.png',
-                'USD': 'https://img.icons8.com/color/96/usa-currency.png',
-                'EUR': 'https://img.icons8.com/color/96/euro-money.png',
-                'GBP': 'https://img.icons8.com/color/96/british-pounds.png',
-                'CNY': 'https://img.icons8.com/color/96/chinese-yuan.png',
-                'KZT': 'https://img.icons8.com/color/96/kazakhstan-tenge.png',
-                'UAH': 'https://img.icons8.com/color/96/ukrainian-hryvnia.png',
-                'BTC': 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
-                'ETH': 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
-                'USDT': 'https://cryptologos.cc/logos/tether-usdt-logo.png',
-                'TON': 'https://cryptologos.cc/logos/toncoin-ton-logo.png',
-                'SOL': 'https://cryptologos.cc/logos/solana-sol-logo.png',
-                'BNB': 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
-                'DOGE': 'https://cryptologos.cc/logos/dogecoin-doge-logo.png',
+                'RUB': 'https://img.icons8.com/color/96/russian-ruble.png', 'USD': 'https://img.icons8.com/color/96/usa-currency.png',
+                'EUR': 'https://img.icons8.com/color/96/euro-money.png', 'GBP': 'https://img.icons8.com/color/96/british-pounds.png',
+                'CNY': 'https://img.icons8.com/color/96/chinese-yuan.png', 'KZT': 'https://img.icons8.com/color/96/kazakhstan-tenge.png',
+                'UAH': 'https://img.icons8.com/color/96/ukrainian-hryvnia.png', 'BTC': 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+                'ETH': 'https://cryptologos.cc/logos/ethereum-eth-logo.png', 'USDT': 'https://cryptologos.cc/logos/tether-usdt-logo.png',
+                'TON': 'https://cryptologos.cc/logos/toncoin-ton-logo.png', 'SOL': 'https://cryptologos.cc/logos/solana-sol-logo.png',
+                'BNB': 'https://cryptologos.cc/logos/bnb-bnb-logo.png', 'DOGE': 'https://cryptologos.cc/logos/dogecoin-doge-logo.png',
                 'XRP': 'https://cryptologos.cc/logos/xrp-xrp-logo.png'
             };
             document.getElementById('img-c1').src = icons[document.getElementById('c1').value] || '';
@@ -163,8 +160,13 @@
 
         async function calc(skipHistory = false) {
             updateIcons();
+            const from = document.getElementById('c1').value;
+            const to = document.getElementById('c2').value;
+            localStorage.setItem('currency1', from);
+            localStorage.setItem('currency2', to);
+
             if (!apiEnabled) { document.getElementById('a2').value = "PAUSED"; return; }
-            const from = document.getElementById('c1').value, to = document.getElementById('c2').value, amt = parseFloat(document.getElementById('a1').value);
+            const amt = parseFloat(document.getElementById('a1').value);
             if (isNaN(amt) || amt <= 0) { document.getElementById('a2').value = "0.00"; return; }
             try {
                 const res = await fetch(`https://min-api.cryptocompare.com/data/price?fsym=${from}&tsyms=${to}`);
@@ -189,9 +191,10 @@
 
         document.getElementById('swap').onclick = function() {
             this.classList.toggle('rotate');
-            const v = document.getElementById('c1').value;
-            document.getElementById('c1').value = document.getElementById('c2').value;
-            document.getElementById('c2').value = v;
+            const v1 = document.getElementById('c1').value;
+            const v2 = document.getElementById('c2').value;
+            document.getElementById('c1').value = v2;
+            document.getElementById('c2').value = v1;
             calc();
         };
 
