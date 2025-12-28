@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>sosiologe — Ultimate Terminal</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-color: #0b0e11; --card-bg: #161a1e; --input-bg: #1e2329;
@@ -18,7 +18,7 @@
             --text-main: #1e2329; --text-muted: #707a8a; --border-color: #eaecef;
             --primary-color: #2563eb; --gradient-1: #f0f2f5; --gradient-2: #e1e5ea; --gradient-3: #ffffff;
         }
-        body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; margin: 0; padding: 100px 0 40px 0; overflow-x: hidden; position: relative; transition: background 0.5s ease; }
+        body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; margin: 0; padding: 100px 0 40px 0; overflow-x: hidden; position: relative; transition: background 0.5s ease; font-weight: 700; }
         
         .bg-gradient { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; background: linear-gradient(45deg, var(--gradient-1), var(--gradient-2), var(--gradient-3)); background-size: 400% 400%; animation: gradientShift 10s ease infinite; }
         @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
@@ -27,8 +27,7 @@
         .live-status { position: absolute; top: 30px; left: 30px; display: flex; align-items: center; gap: 10px; background: var(--input-bg); padding: 8px 14px; border-radius: 12px; border: 1px solid var(--border-color); z-index: 10; }
         .dot { width: 8px; height: 8px; background-color: var(--status-color); border-radius: 50%; position: relative; }
         .dot::after { content: ''; position: absolute; width: 100%; height: 100%; background-color: inherit; border-radius: 50%; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(3); opacity: 0; } }
-        .live-text { font-size: 11px; font-weight: 800; text-transform: uppercase; }
+        .live-text { font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
 
         .theme-toggle-btn { position: absolute; top: 30px; right: 30px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; z-index: 100; }
         .icon-sun, .icon-moon { position: absolute; width: 24px; height: 24px; transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -39,10 +38,13 @@
         header { text-align: center; margin-bottom: 25px; }
         .logo { font-size: 32px; font-weight: 800; letter-spacing: -1.5px; margin: 0; }
         
+        .currency-select-container { display: flex; align-items: center; gap: 10px; background: var(--input-bg); padding: 5px 10px; border-radius: 12px; }
+        .coin-icon { width: 24px; height: 24px; border-radius: 50%; background: transparent; object-fit: contain; }
+
         .input-card { background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 20px; padding: 20px; }
-        .input-card label { display: block; font-size: 10px; color: var(--text-muted); font-weight: 800; text-transform: uppercase; margin-bottom: 8px; }
-        select { background: none; border: none; color: var(--text-main); font-size: 16px; font-weight: 800; outline: none; cursor: pointer; }
-        input { background: none; border: none; color: var(--text-main); font-size: 24px; font-weight: 700; text-align: right; width: 100%; outline: none; }
+        .input-card label { display: block; font-size: 11px; color: var(--text-muted); font-weight: 900; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; }
+        select { background: none; border: none; color: var(--text-main); font-size: 16px; font-weight: 900; outline: none; cursor: pointer; }
+        input { background: none; border: none; color: var(--text-main); font-size: 26px; font-weight: 800; text-align: right; width: 100%; outline: none; }
 
         .swap-divider { display: flex; justify-content: center; height: 16px; position: relative; z-index: 5; }
         .swap-btn { background: var(--primary-color); border: 5px solid var(--card-bg); width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; position: absolute; top: -16px; transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1); color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
@@ -51,16 +53,16 @@
 
         .history-container { width: 90%; max-width: 400px; background: var(--card-bg); border-radius: 24px; padding: 20px; border: 1px solid var(--border-color); }
         .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .history-title { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); }
-        .clear-btn { background: none; border: none; color: #ff4444; font-size: 10px; font-weight: 800; cursor: pointer; }
-        .history-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 13px; font-weight: 700; }
-        .update-tag { font-size: 9px; color: var(--text-muted); text-align: center; margin-top: 10px; font-weight: 700; text-transform: uppercase; }
+        .history-title { font-size: 12px; font-weight: 900; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+        .clear-btn { background: none; border: none; color: #ff4444; font-size: 11px; font-weight: 900; cursor: pointer; text-transform: uppercase; }
+        .history-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 14px; font-weight: 800; }
+        .update-tag { font-size: 10px; color: var(--text-muted); text-align: center; margin-top: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
     </style>
 </head>
 <body>
     <div class="bg-gradient"></div>
     <canvas id="snow-canvas"></canvas>
-    <div class="live-status"><div class="dot"></div><span id="status-label">Syncing...</span></div>
+    <div class="live-status"><div class="dot"></div><span id="status-label" class="live-text">Syncing...</span></div>
     
     <button class="theme-toggle-btn" id="theme-toggle">
         <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
@@ -72,30 +74,30 @@
         <div class="input-card">
             <label>You pay</label>
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <select id="c1">
-                    <optgroup label="Fiat">
-                        <option value="RUB">RUB</option><option value="USD" selected>USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="CNY">CNY</option><option value="KZT">KZT</option><option value="UAH">UAH</option>
-                    </optgroup>
-                    <optgroup label="Crypto">
-                        <option value="BTC">BTC</option><option value="ETH">ETH</option><option value="USDT">USDT</option><option value="TON">TON</option><option value="SOL">SOL</option><option value="BNB">BNB</option><option value="XRP">XRP</option><option value="DOGE">DOGE</option>
-                    </optgroup>
-                </select>
+                <div class="currency-select-container">
+                    <img id="img-c1" class="coin-icon" src="" alt="">
+                    <select id="c1">
+                        <optgroup label="Fiat">
+                            <option value="RUB">RUB</option><option value="USD" selected>USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="CNY">CNY</option><option value="KZT">KZT</option><option value="UAH">UAH</option>
+                        </optgroup>
+                        <optgroup label="Crypto">
+                            <option value="BTC">BTC</option><option value="ETH">ETH</option><option value="USDT">USDT</option><option value="TON">TON</option><option value="SOL">SOL</option><option value="BNB">BNB</option><option value="XRP">XRP</option><option value="DOGE">DOGE</option>
+                        </optgroup>
+                    </select>
+                </div>
                 <input type="number" id="a1" value="100">
             </div>
         </div>
-        <div class="swap-divider">
-            <button class="swap-btn" id="swap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M7 16V4M7 4L3 8M7 4L11 8M17 8V20M17 20L21 16M17 20L13 16"></path>
-                </svg>
-            </button>
-        </div>
+        <div class="swap-divider"><button class="swap-btn" id="swap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4M7 4L3 8M7 4L11 8M17 8V20M17 20L21 16M17 20L13 16"></path></svg></button></div>
         <div class="input-card" style="margin-top: 8px;">
             <label>You receive</label>
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <select id="c2">
-                    <option value="USDT">USDT</option><option value="RUB" selected>RUB</option><option value="BTC">BTC</option><option value="TON">TON</option><option value="SOL">SOL</option><option value="USD">USD</option>
-                </select>
+                <div class="currency-select-container">
+                    <img id="img-c2" class="coin-icon" src="" alt="">
+                    <select id="c2">
+                        <option value="USDT">USDT</option><option value="RUB" selected>RUB</option><option value="BTC">BTC</option><option value="TON">TON</option><option value="SOL">SOL</option><option value="USD">USD</option>
+                    </select>
+                </div>
                 <input type="text" id="a2" readonly placeholder="0.00">
             </div>
         </div>
@@ -110,7 +112,7 @@
     <script>
         const BIN_ID = '69511455d0ea881f40451e66', API_KEY = '$2a$10$DsTYqR4FUAVU/LrGU/xIHupctFvvUPF5LiiWhrdgLCxkPdayOm/AC';
         let apiEnabled = true, history = JSON.parse(localStorage.getItem('trade_history')) || [], refreshTimer = 60, saveTimeout;
-        let isFirstLoad = true; // Флаг для предотвращения записи в историю при заходе
+        let isFirstLoad = true;
 
         if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
         document.getElementById('theme-toggle').onclick = () => { document.body.classList.toggle('light-mode'); localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark'); };
@@ -129,18 +131,40 @@
         function animateSnow() { ctx.clearRect(0, 0, canvas.width, canvas.height); particles.forEach(p => { p.update(); p.draw(); }); requestAnimationFrame(animateSnow); }
         animateSnow();
 
+        function updateIcons() {
+            const icons = {
+                'RUB': 'https://img.icons8.com/color/96/russian-ruble.png',
+                'USD': 'https://img.icons8.com/color/96/usa-currency.png',
+                'EUR': 'https://img.icons8.com/color/96/euro-money.png',
+                'GBP': 'https://img.icons8.com/color/96/british-pounds.png',
+                'CNY': 'https://img.icons8.com/color/96/chinese-yuan.png',
+                'KZT': 'https://img.icons8.com/color/96/kazakhstan-tenge.png',
+                'UAH': 'https://img.icons8.com/color/96/ukrainian-hryvnia.png',
+                'BTC': 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+                'ETH': 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+                'USDT': 'https://cryptologos.cc/logos/tether-usdt-logo.png',
+                'TON': 'https://cryptologos.cc/logos/toncoin-ton-logo.png',
+                'SOL': 'https://cryptologos.cc/logos/solana-sol-logo.png',
+                'BNB': 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
+                'DOGE': 'https://cryptologos.cc/logos/dogecoin-doge-logo.png',
+                'XRP': 'https://cryptologos.cc/logos/xrp-xrp-logo.png'
+            };
+            document.getElementById('img-c1').src = icons[document.getElementById('c1').value] || '';
+            document.getElementById('img-c2').src = icons[document.getElementById('c2').value] || '';
+        }
+
         function renderHistory() {
             const list = document.getElementById('history-list');
-            list.innerHTML = history.length ? history.map((item, index) => `<div class="history-item"><span>${item.from} → ${item.to}</span><span>${item.amount} <button onclick="deleteItem(${index})" style="background:none; border:none; color:#ff4444; margin-left:10px; cursor:pointer;">✕</button></span></div>`).join('') : '<div style="text-align:center;color:var(--text-muted);padding:10px;font-size:12px;">No history</div>';
+            list.innerHTML = history.length ? history.map((item, index) => `<div class="history-item"><span>${item.from} → ${item.to}</span><span>${item.amount} <button onclick="deleteItem(${index})" style="background:none; border:none; color:#ff4444; margin-left:10px; cursor:pointer;">✕</button></span></div>`).join('') : '<div style="text-align:center;color:var(--text-muted);padding:10px;font-size:12px;font-weight:900;">No history</div>';
             localStorage.setItem('trade_history', JSON.stringify(history));
         }
         window.deleteItem = (i) => { history.splice(i, 1); renderHistory(); };
         document.getElementById('clear-history').onclick = () => { history = []; renderHistory(); };
 
         async function calc(skipHistory = false) {
+            updateIcons();
             if (!apiEnabled) { document.getElementById('a2').value = "PAUSED"; return; }
-            const from = document.getElementById('c1').value, to = document.getElementById('c2').value;
-            const amt = parseFloat(document.getElementById('a1').value);
+            const from = document.getElementById('c1').value, to = document.getElementById('c2').value, amt = parseFloat(document.getElementById('a1').value);
             if (isNaN(amt) || amt <= 0) { document.getElementById('a2').value = "0.00"; return; }
             try {
                 const res = await fetch(`https://min-api.cryptocompare.com/data/price?fsym=${from}&tsyms=${to}`);
@@ -148,7 +172,6 @@
                 if (data[to]) {
                     const result = (amt * data[to]).toFixed(to === 'BTC' || to === 'ETH' ? 6 : 2);
                     document.getElementById('a2').value = result;
-                    
                     if (!skipHistory && !isFirstLoad) {
                         clearTimeout(saveTimeout);
                         saveTimeout = setTimeout(() => {
@@ -179,8 +202,8 @@
                 document.getElementById('status-label').innerText = data.record.statusText;
                 document.body.style.setProperty('--status-color', data.record.statusColor);
                 apiEnabled = data.record.apiEnabled; 
-                await calc(true); // Считаем без записи в историю
-                isFirstLoad = false; // После первого расчета разрешаем историю
+                await calc(true);
+                isFirstLoad = false;
             } catch (e) {}
         }
 
